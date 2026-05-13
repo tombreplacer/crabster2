@@ -19,6 +19,7 @@ _crabster() {
 '--bind=[Address to bind to]:BIND:_default' \
 '--dir=[Directory to serve]:DIR:_files -/' \
 '--completions=[Generate shell completions]:SHELL:(bash elvish fish powershell zsh)' \
+'--auth=[Require a code (password) for access]:PASSWORD:_default' \
 '--readonly[Read-only mode (disable upload and delete)]' \
 '--hidden[Show hidden files]' \
 '--no-delete[Disable file deletion (uploads still allowed)]' \

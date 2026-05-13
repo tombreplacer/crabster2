@@ -2,14 +2,33 @@ const BASE = '';
 
 export async function fetchFiles(path = '') {
   const res = await fetch(`${BASE}/api/files?path=${encodeURIComponent(path)}`);
-  if (!res.ok) throw new Error((await res.json()).error || res.statusText);
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) {
+    if (data.needsAuth) throw { needsAuth: true };
+    throw new Error(data.error || res.statusText);
+  }
+  return data;
 }
 
 export async function fetchServerInfo() {
   const res = await fetch(`${BASE}/api/info`);
-  if (!res.ok) throw new Error(res.statusText);
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) {
+    if (data.needsAuth) throw { needsAuth: true };
+    throw new Error(data.error || res.statusText);
+  }
+  return data;
+}
+
+export async function login(code) {
+  const res = await fetch(`${BASE}/api/auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
 }
 
 export async function uploadFiles(files, path = '') {

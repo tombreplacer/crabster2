@@ -38,6 +38,10 @@ pub struct Cli {
     /// Generate shell completions
     #[arg(long, value_name = "SHELL")]
     pub completions: Option<Shell>,
+
+    /// Require a code (password) for access
+    #[arg(long, env = "CRABSTER_AUTH", value_name = "PASSWORD", hide_env_values = true)]
+    pub auth: Option<String>,
 }
 
 pub fn print_completions(shell: Shell) {

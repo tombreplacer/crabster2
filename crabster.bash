@@ -23,7 +23,7 @@ _crabster() {
 
     case "${cmd}" in
         crabster)
-            opts="--port --bind --dir --readonly --hidden --no-delete --completions --help --version"
+            opts="--port --bind --dir --readonly --hidden --no-delete --completions --auth --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -46,6 +46,10 @@ _crabster() {
                     ;;
                 --completions)
                     COMPREPLY=($(compgen -W "bash elvish fish powershell zsh" -- "${cur}"))
+                    return 0
+                    ;;
+                --auth)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)

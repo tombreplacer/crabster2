@@ -40,6 +40,7 @@ async fn main() -> std::io::Result<()> {
         args.readonly,
         args.hidden,
         args.no_delete,
+        args.auth,
     )
     .await
 }

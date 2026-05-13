@@ -11,6 +11,7 @@ pub async fn start_server(
     readonly: bool,
     hidden: bool,
     no_delete: bool,
+    auth: Option<String>,
 ) -> std::io::Result<()> {
     let root_dir = root_dir.canonicalize().unwrap_or(root_dir);
 
@@ -19,6 +20,7 @@ pub async fn start_server(
         readonly,
         hidden,
         no_delete,
+        auth: auth.clone(),
     });
 
     println!();
@@ -32,6 +34,9 @@ pub async fn start_server(
         println!("  🛡️  Mode:      \x1b[33mno-delete\x1b[0m");
     } else {
         println!("  ✏️  Mode:      \x1b[32mread-write\x1b[0m");
+    }
+    if auth.is_some() {
+        println!("  🔐 Auth:      \x1b[32menabled\x1b[0m");
     }
     println!("  ─────────────────────────────────");
     println!("  Press \x1b[1mCtrl+C\x1b[0m to stop");
@@ -49,6 +54,7 @@ pub async fn start_server(
             .route("/api/delete/{path:.*}", web::delete().to(handlers::delete_file))
             .route("/api/info", web::get().to(handlers::server_info))
             .route("/api/mkdir", web::post().to(handlers::create_dir))
+            .route("/api/auth", web::post().to(handlers::auth_login))
     })
     .bind(format!("{}:{}", bind, port))?
     .run()

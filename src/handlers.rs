@@ -13,11 +13,53 @@ pub struct AppState {
     pub readonly: bool,
     pub hidden: bool,
     pub no_delete: bool,
+    pub auth: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct PathQuery {
     pub path: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct AuthRequest {
+    pub code: String,
+}
+
+pub fn check_auth(req: &HttpRequest, data: &web::Data<AppState>) -> Result<(), HttpResponse> {
+    if let Some(expected) = &data.auth {
+        if let Some(cookie) = req.cookie("crabster_auth") {
+            if cookie.value() == expected {
+                return Ok(());
+            }
+        }
+        return Err(HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Authentication required",
+            "needsAuth": true
+        })));
+    }
+    Ok(())
+}
+
+pub async fn auth_login(
+    data: web::Data<AppState>,
+    body: web::Json<AuthRequest>,
+) -> HttpResponse {
+    if let Some(expected) = &data.auth {
+        if body.code == *expected {
+            let cookie = actix_web::cookie::Cookie::build("crabster_auth", expected.clone())
+                .path("/")
+                .http_only(true)
+                .finish();
+            return HttpResponse::Ok()
+                .cookie(cookie)
+                .json(serde_json::json!({"success": true}));
+        }
+        return HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Invalid code"
+        }));
+    }
+    HttpResponse::Ok().json(serde_json::json!({"success": true}))
 }
 
 /// Serve the embedded HTML page
@@ -30,9 +72,11 @@ pub async fn index_handler() -> HttpResponse {
 
 /// List files in directory
 pub async fn list_files(
+    req: HttpRequest,
     data: web::Data<AppState>,
     query: web::Query<PathQuery>,
 ) -> HttpResponse {
+    if let Err(e) = check_auth(&req, &data) { return e; }
     let rel_path = query.path.as_deref().unwrap_or("");
     let rel_path = percent_decode_str(rel_path)
         .decode_utf8_lossy()
@@ -99,6 +143,7 @@ pub async fn download_file(
     data: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {
+    if let Err(e) = check_auth(&req, &data) { return e; }
     let rel_path = req.match_info().query("path");
     let rel_path = percent_decode_str(rel_path)
         .decode_utf8_lossy()
@@ -153,6 +198,7 @@ pub async fn preview_file(
     data: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {
+    if let Err(e) = check_auth(&req, &data) { return e; }
     let rel_path = req.match_info().query("path");
     let rel_path = percent_decode_str(rel_path)
         .decode_utf8_lossy()
@@ -272,10 +318,12 @@ pub async fn preview_file(
 
 /// Upload files via multipart
 pub async fn upload_files(
+    req: HttpRequest,
     data: web::Data<AppState>,
     query: web::Query<PathQuery>,
     mut payload: Multipart,
 ) -> HttpResponse {
+    if let Err(e) = check_auth(&req, &data) { return e; }
     if data.readonly {
         return HttpResponse::Forbidden().json(serde_json::json!({
             "error": "Server is in read-only mode"
@@ -357,6 +405,7 @@ pub async fn delete_file(
     data: web::Data<AppState>,
     req: HttpRequest,
 ) -> HttpResponse {
+    if let Err(e) = check_auth(&req, &data) { return e; }
     if data.readonly || data.no_delete {
         return HttpResponse::Forbidden().json(serde_json::json!({
             "error": "Deletion is disabled"
@@ -400,7 +449,11 @@ pub async fn delete_file(
 }
 
 /// Server info endpoint
-pub async fn server_info(data: web::Data<AppState>) -> HttpResponse {
+pub async fn server_info(
+    req: HttpRequest,
+    data: web::Data<AppState>
+) -> HttpResponse {
+    if let Err(e) = check_auth(&req, &data) { return e; }
     let root = data
         .root_dir
         .canonicalize()
@@ -418,9 +471,11 @@ pub async fn server_info(data: web::Data<AppState>) -> HttpResponse {
 
 /// Create a new directory
 pub async fn create_dir(
+    req: HttpRequest,
     data: web::Data<AppState>,
     query: web::Query<PathQuery>,
 ) -> HttpResponse {
+    if let Err(e) = check_auth(&req, &data) { return e; }
     if data.readonly {
         return HttpResponse::Forbidden().json(serde_json::json!({
             "error": "Server is in read-only mode"

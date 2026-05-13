@@ -6,6 +6,7 @@ elvish\t''
 fish\t''
 powershell\t''
 zsh\t''"
+complete -c crabster -l auth -d 'Require a code (password) for access' -r
 complete -c crabster -l readonly -d 'Read-only mode (disable upload and delete)'
 complete -c crabster -l hidden -d 'Show hidden files'
 complete -c crabster -l no-delete -d 'Disable file deletion (uploads still allowed)'

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { fetchFiles, fetchServerInfo, uploadFiles, downloadUrl, deleteFile, createDir, formatSize, formatDate, getFileIconType, isPreviewable, previewUrl } from './lib/api.js';
+  import { fetchFiles, fetchServerInfo, uploadFiles, downloadUrl, deleteFile, createDir, formatSize, formatDate, getFileIconType, isPreviewable, previewUrl, login } from './lib/api.js';
   import FileIcon from './lib/FileIcon.svelte';
   import Breadcrumb from './lib/Breadcrumb.svelte';
   import UploadZone from './lib/UploadZone.svelte';
@@ -8,6 +8,7 @@
   import PreviewModal from './lib/PreviewModal.svelte';
   import FileInfoModal from './lib/FileInfoModal.svelte';
   import ConfirmModal from './lib/ConfirmModal.svelte';
+  import AuthModal from './lib/AuthModal.svelte';
 
   let currentPath = null;
   let entries = [];
@@ -26,6 +27,9 @@
   let previewEntry = null;
   let infoEntry = null;
   let confirmDialog = null;
+  let needsAuth = false;
+  let authError = null;
+  let authLoading = false;
 
   $: pathParts = currentPath ? currentPath.split('/').filter(Boolean) : [];
   $: filtered = entries.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -58,7 +62,10 @@
       if (decodeURIComponent(window.location.hash.slice(1)) !== currentPath) {
         history.replaceState(null, '', newHash || window.location.pathname);
       }
-    } catch (e) { error = e.message; toast(e.message, 'error'); }
+    } catch (e) {
+      if (e.needsAuth) needsAuth = true;
+      else { error = e.message; toast(e.message, 'error'); }
+    }
     loading = false;
   }
 
@@ -156,7 +163,11 @@
   }
 
   onMount(async () => {
-    try { serverInfo = await fetchServerInfo(); } catch(e) {}
+    try { 
+      serverInfo = await fetchServerInfo(); 
+    } catch(e) {
+      if (e.needsAuth) needsAuth = true;
+    }
     
     window.addEventListener('hashchange', handleHashChange);
     handleHashChange();
@@ -167,6 +178,20 @@
       window.removeEventListener('hashchange', handleHashChange);
     };
   });
+
+  async function handleLogin(code) {
+    authLoading = true;
+    authError = null;
+    try {
+      await login(code);
+      needsAuth = false;
+      serverInfo = await fetchServerInfo();
+      await loadFiles(currentPath || '');
+    } catch (e) {
+      authError = e.message;
+    }
+    authLoading = false;
+  }
 </script>
 
 <div class="app">
@@ -322,6 +347,14 @@
 
   {#if confirmDialog}
     <ConfirmModal {...confirmDialog} />
+  {/if}
+
+  {#if needsAuth}
+    <AuthModal 
+      onSubmit={handleLogin} 
+      error={authError} 
+      loading={authLoading} 
+    />
   {/if}
 
   <div class="toast-container">
