@@ -29,6 +29,34 @@ export function downloadUrl(path) {
   return `${BASE}/api/download/${encodeURIComponent(path)}`;
 }
 
+export function previewUrl(path) {
+  return `${BASE}/api/preview/${encodeURIComponent(path)}`;
+}
+
+export function isPreviewable(entry) {
+  if (entry.is_dir) return false;
+  const mime = entry.mime_type || '';
+  if (mime.startsWith('image/')) return true;
+  if (mime.startsWith('video/')) return true;
+  if (mime.startsWith('audio/')) return true;
+  if (mime.includes('pdf')) return true;
+  if (mime.startsWith('text/')) return true;
+  if (mime.includes('json') || mime.includes('xml') || mime.includes('javascript')
+      || mime.includes('css') || mime.includes('yaml') || mime.includes('toml')
+      || mime.includes('markdown') || mime.includes('x-sh') || mime.includes('x-python')
+      || mime.includes('x-ruby') || mime.includes('x-perl') || mime.includes('x-httpd-php')) return true;
+  return false;
+}
+
+export function getPreviewType(entry) {
+  const mime = entry.mime_type || '';
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.includes('pdf')) return 'pdf';
+  return 'text';
+}
+
 export async function deleteFile(path) {
   const res = await fetch(`${BASE}/api/delete/${encodeURIComponent(path)}`, {
     method: 'DELETE',

@@ -1,10 +1,13 @@
 <script>
   import { onMount } from 'svelte';
-  import { fetchFiles, fetchServerInfo, uploadFiles, downloadUrl, deleteFile, createDir, formatSize, formatDate, getFileIconType } from './lib/api.js';
+  import { fetchFiles, fetchServerInfo, uploadFiles, downloadUrl, deleteFile, createDir, formatSize, formatDate, getFileIconType, isPreviewable, previewUrl } from './lib/api.js';
   import FileIcon from './lib/FileIcon.svelte';
   import Breadcrumb from './lib/Breadcrumb.svelte';
   import UploadZone from './lib/UploadZone.svelte';
   import Toast from './lib/Toast.svelte';
+  import PreviewModal from './lib/PreviewModal.svelte';
+  import FileInfoModal from './lib/FileInfoModal.svelte';
+  import ConfirmModal from './lib/ConfirmModal.svelte';
 
   let currentPath = null;
   let entries = [];
@@ -20,6 +23,9 @@
   let uploadProgress = '';
   let showNewDirModal = false;
   let newDirName = '';
+  let previewEntry = null;
+  let infoEntry = null;
+  let confirmDialog = null;
 
   $: pathParts = currentPath ? currentPath.split('/').filter(Boolean) : [];
   $: filtered = entries.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -74,6 +80,10 @@
     if (entry.is_dir) {
       const newPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
       navigate(newPath);
+    } else if (isPreviewable(entry)) {
+      previewEntry = entry;
+    } else {
+      infoEntry = entry;
     }
   }
 
@@ -91,14 +101,23 @@
     toast(`Downloading ${entry.name}`, 'info');
   }
 
-  async function handleDelete(entry) {
-    if (!confirm(`Delete "${entry.name}"?`)) return;
-    try {
-      const path = currentPath ? `${currentPath}/${entry.name}` : entry.name;
-      await deleteFile(path);
-      toast(`Deleted ${entry.name}`, 'success');
-      loadFiles(currentPath);
-    } catch (e) { toast(e.message, 'error'); }
+  function handleDelete(entry) {
+    confirmDialog = {
+      title: 'Delete File',
+      message: `Are you sure you want to delete "${entry.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      danger: true,
+      onConfirm: async () => {
+        confirmDialog = null;
+        try {
+          const path = currentPath ? `${currentPath}/${entry.name}` : entry.name;
+          await deleteFile(path);
+          toast(`Deleted ${entry.name}`, 'success');
+          loadFiles(currentPath);
+        } catch (e) { toast(e.message, 'error'); }
+      },
+      onCancel: () => { confirmDialog = null; }
+    };
   }
 
   async function handleUpload(e) {
@@ -224,7 +243,7 @@
                 on:contextmenu={(e) => handleContextMenu(e, entry)}>
                 <td class="td-name">
                   <FileIcon type={getFileIconType(entry)} size={18}/>
-                  <button class="name-btn" class:is-dir={entry.is_dir} on:click={() => handleEntryClick(entry)}>
+                  <button class="name-btn" class:is-dir={entry.is_dir} class:is-clickable={!entry.is_dir} on:click={() => handleEntryClick(entry)}>
                     {entry.name}
                   </button>
                   {#if entry.is_symlink}<span class="badge badge-sm">symlink</span>{/if}
@@ -280,6 +299,29 @@
         </div>
       </div>
     </div>
+  {/if}
+
+  {#if previewEntry}
+    <PreviewModal
+      entry={previewEntry}
+      filePath={currentPath ? `${currentPath}/${previewEntry.name}` : previewEntry.name}
+      onClose={() => previewEntry = null}
+    />
+  {/if}
+
+  {#if infoEntry}
+    <FileInfoModal
+      entry={infoEntry}
+      filePath={currentPath ? `${currentPath}/${infoEntry.name}` : infoEntry.name}
+      onClose={() => infoEntry = null}
+      onDelete={handleDelete}
+      readonly={serverInfo.readonly}
+      noDelete={serverInfo.no_delete}
+    />
+  {/if}
+
+  {#if confirmDialog}
+    <ConfirmModal {...confirmDialog} />
   {/if}
 
   <div class="toast-container">
@@ -339,6 +381,8 @@
   .name-btn:hover { color: var(--accent); }
   .name-btn.is-dir { font-weight: 500; cursor: pointer; }
   .name-btn.is-dir:hover { color: var(--accent); text-decoration: underline; }
+  .name-btn.is-clickable { cursor: pointer; }
+  .name-btn.is-clickable:hover { color: var(--accent); text-decoration: underline; }
   .td-size { color: var(--text-secondary); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
   .td-perm code { font-family: var(--mono); font-size: 12px; color: var(--text-secondary); background: rgba(255,255,255,0.04); padding: 2px 6px; border-radius: 4px; }
   .td-owner { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }

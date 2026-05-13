@@ -4,7 +4,7 @@ use futures_util::StreamExt;
 use percent_encoding::percent_decode_str;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use crate::file_info::{get_file_entry, DirListing};
 
@@ -148,6 +148,128 @@ pub async fn download_file(
     }
 }
 
+/// Preview a file inline (with Range support for video streaming)
+pub async fn preview_file(
+    data: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let rel_path = req.match_info().query("path");
+    let rel_path = percent_decode_str(rel_path)
+        .decode_utf8_lossy()
+        .to_string();
+
+    let full_path = match resolve_safe_path(&data.root_dir, &rel_path) {
+        Some(p) => p,
+        None => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Invalid path"
+            }));
+        }
+    };
+
+    if !full_path.is_file() {
+        return HttpResponse::NotFound().json(serde_json::json!({
+            "error": "File not found"
+        }));
+    }
+
+    let file_size = match tokio::fs::metadata(&full_path).await {
+        Ok(m) => m.len(),
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": format!("Cannot stat file: {}", e)
+            }));
+        }
+    };
+
+    let mime = mime_guess::from_path(&full_path)
+        .first_or_octet_stream()
+        .to_string();
+
+    let filename = full_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let encoded_filename = percent_encoding::percent_encode(
+        filename.as_bytes(),
+        percent_encoding::NON_ALPHANUMERIC,
+    ).to_string();
+
+    let content_disposition = format!(
+        "inline; filename=\"{}\"; filename*=UTF-8''{}",
+        filename, encoded_filename
+    );
+
+    // Check for Range header
+    if let Some(range_header) = req.headers().get("Range") {
+        let range_str = match range_header.to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                return HttpResponse::BadRequest().body("Invalid Range header");
+            }
+        };
+
+        // Parse "bytes=start-end"
+        if let Some(range) = parse_range(range_str, file_size) {
+            let (start, end) = range;
+            let chunk_size = end - start + 1;
+
+            let mut file = match tokio::fs::File::open(&full_path).await {
+                Ok(f) => f,
+                Err(e) => {
+                    return HttpResponse::InternalServerError().json(serde_json::json!({
+                        "error": format!("Cannot open file: {}", e)
+                    }));
+                }
+            };
+
+            if let Err(e) = file.seek(std::io::SeekFrom::Start(start)).await {
+                return HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": format!("Seek error: {}", e)
+                }));
+            }
+
+            let mut buf = vec![0u8; chunk_size as usize];
+            if let Err(e) = file.read_exact(&mut buf).await {
+                return HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": format!("Read error: {}", e)
+                }));
+            }
+
+            return HttpResponse::PartialContent()
+                .content_type(mime)
+                .insert_header(("Content-Disposition", content_disposition))
+                .insert_header(("Accept-Ranges", "bytes"))
+                .insert_header((
+                    "Content-Range",
+                    format!("bytes {}-{}/{}", start, end, file_size),
+                ))
+                .insert_header(("Content-Length", chunk_size.to_string()))
+                .body(buf);
+        } else {
+            // Invalid range
+            return HttpResponse::RangeNotSatisfiable()
+                .insert_header(("Content-Range", format!("bytes */{}", file_size)))
+                .finish();
+        }
+    }
+
+    // No Range header — serve full file
+    match tokio::fs::read(&full_path).await {
+        Ok(content) => HttpResponse::Ok()
+            .content_type(mime)
+            .insert_header(("Content-Disposition", content_disposition))
+            .insert_header(("Accept-Ranges", "bytes"))
+            .insert_header(("Content-Length", file_size.to_string()))
+            .body(content),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("Cannot read file: {}", e)
+        })),
+    }
+}
+
 /// Upload files via multipart
 pub async fn upload_files(
     data: web::Data<AppState>,
@@ -197,6 +319,12 @@ pub async fn upload_files(
         }
 
         let filepath = target_dir.join(&filename);
+
+        if filepath.exists() {
+            return HttpResponse::Conflict().json(serde_json::json!({
+                "error": format!("File '{}' already exists", filename)
+            }));
+        }
 
         let mut file = match tokio::fs::File::create(&filepath).await {
             Ok(f) => f,
@@ -372,4 +500,41 @@ fn sanitize_filename(name: &str) -> String {
     let name = name.rsplit('/').next().unwrap_or(&name);
     let name = name.trim_start_matches('.');
     name.to_string()
+}
+
+/// Parse HTTP Range header value like "bytes=0-1023" into (start, end)
+fn parse_range(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
+    let range_str = range_str.strip_prefix("bytes=")?;
+    let parts: Vec<&str> = range_str.splitn(2, '-').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+
+    let start: u64;
+    let end: u64;
+
+    if parts[0].is_empty() {
+        // suffix range: bytes=-500
+        let suffix: u64 = parts[1].parse().ok()?;
+        if suffix > file_size {
+            return None;
+        }
+        start = file_size - suffix;
+        end = file_size - 1;
+    } else {
+        start = parts[0].parse().ok()?;
+        if parts[1].is_empty() {
+            // open-ended: bytes=500-
+            end = file_size - 1;
+        } else {
+            end = parts[1].parse().ok()?;
+        }
+    }
+
+    if start > end || start >= file_size {
+        return None;
+    }
+
+    let end = end.min(file_size - 1);
+    Some((start, end))
 }

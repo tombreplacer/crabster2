@@ -44,6 +44,7 @@ pub async fn start_server(
             .route("/", web::get().to(handlers::index_handler))
             .route("/api/files", web::get().to(handlers::list_files))
             .route("/api/download/{path:.*}", web::get().to(handlers::download_file))
+            .route("/api/preview/{path:.*}", web::get().to(handlers::preview_file))
             .route("/api/upload", web::post().to(handlers::upload_files))
             .route("/api/delete/{path:.*}", web::delete().to(handlers::delete_file))
             .route("/api/info", web::get().to(handlers::server_info))
