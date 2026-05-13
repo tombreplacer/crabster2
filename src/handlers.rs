@@ -129,12 +129,17 @@ pub async fn download_file(
         .first_or_octet_stream()
         .to_string();
 
+    let encoded_filename = percent_encoding::percent_encode(
+        filename.as_bytes(),
+        percent_encoding::NON_ALPHANUMERIC,
+    ).to_string();
+
     match tokio::fs::read(&full_path).await {
         Ok(content) => HttpResponse::Ok()
             .content_type(mime)
             .insert_header((
                 "Content-Disposition",
-                format!("attachment; filename=\"{}\"", filename),
+                format!("attachment; filename=\"{}\"; filename*=UTF-8''{}", filename, encoded_filename),
             ))
             .body(content),
         Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({

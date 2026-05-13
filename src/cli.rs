@@ -43,5 +43,13 @@ pub struct Cli {
 pub fn print_completions(shell: Shell) {
     let mut cmd = Cli::command();
     let name = cmd.get_name().to_string();
+
+    // Strip short flags so they don't appear in completions
+    cmd.build(); // ensure help and version flags are built
+    let arg_ids: Vec<_> = cmd.get_arguments().map(|a| a.get_id().clone()).collect();
+    for id in arg_ids {
+        cmd = cmd.mut_arg(id, |a| a.short(None));
+    }
+
     generate(shell, &mut cmd, name, &mut io::stdout());
 }

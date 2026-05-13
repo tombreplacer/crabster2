@@ -6,7 +6,7 @@
   import UploadZone from './lib/UploadZone.svelte';
   import Toast from './lib/Toast.svelte';
 
-  let currentPath = '';
+  let currentPath = null;
   let entries = [];
   let serverInfo = {};
   let loading = true;
@@ -47,11 +47,28 @@
       currentPath = data.path;
       serverInfo.readonly = data.readonly;
       serverInfo.no_delete = data.no_delete;
+      
+      const newHash = currentPath ? `#${currentPath}` : '';
+      if (decodeURIComponent(window.location.hash.slice(1)) !== currentPath) {
+        history.replaceState(null, '', newHash || window.location.pathname);
+      }
     } catch (e) { error = e.message; toast(e.message, 'error'); }
     loading = false;
   }
 
-  function navigate(path) { loadFiles(path); searchQuery = ''; closeContext(); }
+  function navigate(path) { 
+    const newHash = path ? `#${path}` : '';
+    window.location.hash = newHash;
+    searchQuery = ''; closeContext(); 
+  }
+
+  function handleHashChange() {
+    let hashPath = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+    hashPath = decodeURIComponent(hashPath);
+    if (hashPath !== currentPath) {
+      loadFiles(hashPath);
+    }
+  }
 
   function handleEntryClick(entry) {
     if (entry.is_dir) {
@@ -121,9 +138,15 @@
 
   onMount(async () => {
     try { serverInfo = await fetchServerInfo(); } catch(e) {}
-    loadFiles('');
+    
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
+
     document.addEventListener('click', closeContext);
-    return () => document.removeEventListener('click', closeContext);
+    return () => {
+      document.removeEventListener('click', closeContext);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   });
 </script>
 
