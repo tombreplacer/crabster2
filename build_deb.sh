@@ -7,6 +7,9 @@ npm install
 npm run build
 cd ..
 
+echo "🦀 Compressing frontend..."
+gzip -9 -c static/index.html > static/index.html.gz
+
 echo "🦀 Checking for cargo-deb..."
 if ! command -v cargo-deb &> /dev/null; then
     echo "cargo-deb not found. Installing..."

@@ -29,6 +29,9 @@ jobs:
         working-directory: web
         run: npm run build
 
+      - name: Compress Frontend
+        run: gzip -9 -c static/index.html > static/index.html.gz
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 

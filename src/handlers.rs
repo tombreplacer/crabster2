@@ -62,12 +62,13 @@ pub async fn auth_login(
     HttpResponse::Ok().json(serde_json::json!({"success": true}))
 }
 
-/// Serve the embedded HTML page
+/// Serve the embedded HTML page (gzipped)
 pub async fn index_handler() -> HttpResponse {
-    let html = include_str!("../static/index.html");
+    let bytes = include_bytes!("../static/index.html.gz");
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(html)
+        .insert_header(("Content-Encoding", "gzip"))
+        .body(bytes.as_slice())
 }
 
 /// List files in directory
