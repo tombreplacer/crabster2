@@ -5,10 +5,8 @@
 <h1 align="center">🦀 Crabster</h1>
 
 <p align="center">
-  <img src="https://github.com/tombreplacer/crabster2/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  <img src="https://github.com/tombreplacer/crabster2/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI Status">
   <img src="https://github.com/tombreplacer/crabster2/actions/workflows/release.yml/badge.svg" alt="Release Status">
-  <img src="https://img.shields.io/github/license/tombreplacer/crabster2" alt="License">
-  <img src="https://img.shields.io/github/v/release/tombreplacer/crabster2" alt="Latest Version">
 </p>
 
 <p align="center">
