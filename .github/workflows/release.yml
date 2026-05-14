@@ -21,32 +21,52 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
+      - name: Install Frontend Dependencies
+        working-directory: web
+        run: npm install
+
       - name: Build Frontend
         working-directory: web
-        run: |
-          npm install
-          npm run build
+        run: npm run build
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-deb
-        run: cargo install cargo-deb
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build Package
+      - name: Build Release Binary
+        run: cargo build --release
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb || true
+
+      - name: Generate Shell Completions
         run: |
-          cargo build --release
           ./target/release/crabster --completions bash > crabster.bash
           ./target/release/crabster --completions zsh > _crabster
           ./target/release/crabster --completions fish > crabster.fish
-          cargo deb
 
-      - name: Create Release
+      - name: Build Debian Package
+        run: cargo deb
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             target/debian/*.deb
-            target/release/crabster
-          generate_release_notes: true
+            crabster.bash
+            _crabster
+            crabster.fish
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
