@@ -1,65 +1,112 @@
-# Crabster 🦀
+<p align="center">
+  <img src="logo.png" width="200" alt="Crabster Logo">
+</p>
 
-A lightweight, cross-platform file server in Rust with a beautiful single-file Web UI. 
+<h1 align="center">🦀 Crabster</h1>
 
-Crabster is designed to be a single binary that you can drop onto any server or computer to instantly share files via a modern browser interface. It supports uploading, downloading, folder navigation, and basic file management.
+<p align="center">
+  <img src="https://github.com/tombreplacer/crabster2/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  <img src="https://github.com/tombreplacer/crabster2/actions/workflows/release.yml/badge.svg" alt="Release Status">
+  <img src="https://img.shields.io/github/license/tombreplacer/crabster2" alt="License">
+  <img src="https://img.shields.io/github/v/release/tombreplacer/crabster2" alt="Latest Version">
+</p>
 
-## Features
+<p align="center">
+  <strong>Быстрый, легкий и эстетичный файловый сервер на Rust</strong>
+</p>
 
-- ⚡️ **Extremely Fast**: Built on Rust and `actix-web`.
-- 📦 **Single Binary**: The entire Svelte Web UI (HTML, CSS, JS, SVG) is compiled into a single 77 KB file and embedded directly into the Rust binary. 
-- 🎨 **Modern Web UI**: Features a beautiful dark theme, glassmorphism, drag-and-drop uploads, context menus, and breadcrumb navigation.
-- 🛡️ **Secure by Default**: Built-in path traversal protection.
-- 🔒 **Read-only Mode**: Prevent accidental deletions or uploads by launching in read-only mode.
-- 🖥️ **Cross Platform**: Works on Linux, macOS, and Windows.
+---
 
-## Installation / Building for Production
+**Crabster** — это быстрый, легкий и эстетичный файловый сервер, написанный на Rust. Он поставляется в виде одного бинарного файла, который включает в себя современный веб-интерфейс на Svelte.
 
-To build Crabster from source, you need Node.js (for the Svelte frontend) and Rust/Cargo (for the backend).
+## ✨ Основные возможности
 
-### 1. Build the Frontend
-The frontend must be built first so that the Rust compiler can embed `index.html`.
+- 🚀 **Одиночный бинарник**: Фронтенд встроен в исполняемый файл. Никаких внешних зависимостей.
+- 🎨 **Премиальный UI**: Темная тема, стеклянный морфизм (glassmorphism) и плавная анимация.
+- 📁 **Управление файлами**: Загрузка (drag-and-drop), скачивание, создание папок и удаление.
+- 👁️ **Предпросмотр**: Встроенный просмотр для:
+    - Изображений (PNG, JPG, SVG, WebP)
+    - Видео (MP4, WebM) и Аудио (MP3, WAV)
+    - Документов PDF
+    - Исходного кода и текста с подсветкой
+- 🔒 **Безопасность**:
+    - Режим «только чтение» (`--readonly`)
+    - Запрет только на удаление (`--no-delete`)
+    - Доступ по коду/паролю (`--auth`)
+- 😈 **Режим демона**: Запуск в фоне, управление списком активных серверов и остановка по ID.
+- ⌨️ **Автодополнение**: Поддержка Bash, Zsh и Fish с динамическими подсказками ID инстансов.
 
+---
+
+## 🚀 Быстрый старт
+
+### Установка (Debian/Ubuntu)
+Если у вас есть готовый `.deb` пакет:
 ```bash
-cd web
-npm install
-npm run build
+sudo dpkg -i crabster_0.1.0_amd64.deb
 ```
 
-### 2. Build the Backend
-Return to the project root and build the Rust release binary. The `Cargo.toml` is already configured for maximum optimization (`opt-level = "z"`, `strip = true`, `lto = true`).
-
+### Запуск
 ```bash
-cd ..
-cargo build --release
+# Обычный запуск в текущей директории (порт 8080)
+crabster
+
+# Запуск в фоне (демон)
+crabster -d --port 9000 --dir ./my-files
+
+# Посмотреть запущенные в фоне серверы
+crabster ps
+
+# Остановить сервер по ID
+crabster stop <id>
 ```
 
-The resulting binary will be located at `target/release/crabster`. It's a completely standalone file (~3 MB) that you can move and run anywhere!
+---
 
-## Usage
+## 🛠️ Командная строка
 
-```bash
-# Run on the default port (8080) serving the current directory
-./crabster
+| Флаг | Описание |
+| :--- | :--- |
+| `-p, --port` | Порт для прослушивания (по умолчанию 8080) |
+| `-b, --bind` | Адрес привязки (по умолчанию 0.0.0.0) |
+| `--dir` | Директория для раздачи |
+| `-r, --readonly` | Режим «только чтение» |
+| `--no-delete` | Запретить удаление файлов |
+| `-d, --daemon` | Запустить как фоновый процесс |
+| `--auth <CODE>` | Установить код доступа к веб-интерфейсу |
 
-# Serve a specific directory on a custom port
-./crabster --port 9090 --dir /path/to/share
+### Команды:
+- `crabster start` — запуск сервера (по умолчанию).
+- `crabster ps` — список фоновых инстансов.
+- `crabster stop <id>` — остановить инстанс.
 
-# Run in read-only mode (disables uploads, directory creation, and deletions)
-./crabster --readonly
+---
 
-# Allow viewing hidden files (files starting with a dot)
-./crabster --hidden
+## 📦 Сборка из исходников
 
-# Disable deletions but allow uploads
-./crabster --no-delete
-```
+### Требования:
+- Rust (Cargo)
+- Node.js (npm)
 
-### Shell Completions
+### Шаги сборки:
+1. **Сборка фронтенда**:
+   ```bash
+   cd web && npm install && npm run build && cd ..
+   ```
+2. **Сборка бинарного файла**:
+   ```bash
+   cargo build --release
+   ```
+   Бинарник будет находиться в `target/release/crabster`.
 
-Crabster supports generating shell completions for bash, zsh, fish, and powershell:
+---
 
-```bash
-# Example for bash
-./crabster --completions bash > ~/.local/share/bash-completion/completions/crabster
-```
+## 🤖 CI/CD и Релизы
+Проект полностью настроен для GitHub Actions:
+- **CI**: Автоматическая проверка кода и сборка при каждом коммите.
+- **Release**: При создании тега (например, `v0.1.0`) GitHub автоматически создаст релиз и прикрепит к нему скомпилированный `.deb` пакет и бинарник.
+
+---
+
+## 📜 Лицензия
+Проект распространяется под лицензией [MIT](LICENSE).

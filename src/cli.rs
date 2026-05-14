@@ -53,6 +53,8 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
+    /// Start the file server (default)
+    Start,
     /// List running daemon instances
     Ps,
     /// Stop a running daemon instance

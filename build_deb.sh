@@ -13,11 +13,8 @@ if ! command -v cargo-deb &> /dev/null; then
     cargo install cargo-deb
 fi
 
-echo "🦀 Compiling binary and generating shell completions..."
+echo "🦀 Compiling binary..."
 cargo build --release
-./target/release/crabster --completions bash > crabster.bash
-./target/release/crabster --completions zsh > _crabster
-./target/release/crabster --completions fish > crabster.fish
 
 echo "🦀 Building Debian package..."
 cargo deb

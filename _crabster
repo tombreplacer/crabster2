@@ -35,7 +35,13 @@ _crabster() {
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:crabster-command-$line[1]:"
         case $line[1] in
-            (ps)
+            (start)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(ps)
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help]' \
 '--help[Print help]' \
@@ -60,7 +66,11 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:crabster-help-command-$line[1]:"
         case $line[1] in
-            (ps)
+            (start)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(ps)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -84,6 +94,7 @@ esac
 (( $+functions[_crabster_commands] )) ||
 _crabster_commands() {
     local commands; commands=(
+'start:Start the file server (default)' \
 'ps:List running daemon instances' \
 'stop:Stop a running daemon instance' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -93,6 +104,7 @@ _crabster_commands() {
 (( $+functions[_crabster__subcmd__help_commands] )) ||
 _crabster__subcmd__help_commands() {
     local commands; commands=(
+'start:Start the file server (default)' \
 'ps:List running daemon instances' \
 'stop:Stop a running daemon instance' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -109,6 +121,11 @@ _crabster__subcmd__help__subcmd__ps_commands() {
     local commands; commands=()
     _describe -t commands 'crabster help ps commands' commands "$@"
 }
+(( $+functions[_crabster__subcmd__help__subcmd__start_commands] )) ||
+_crabster__subcmd__help__subcmd__start_commands() {
+    local commands; commands=()
+    _describe -t commands 'crabster help start commands' commands "$@"
+}
 (( $+functions[_crabster__subcmd__help__subcmd__stop_commands] )) ||
 _crabster__subcmd__help__subcmd__stop_commands() {
     local commands; commands=()
@@ -118,6 +135,11 @@ _crabster__subcmd__help__subcmd__stop_commands() {
 _crabster__subcmd__ps_commands() {
     local commands; commands=()
     _describe -t commands 'crabster ps commands' commands "$@"
+}
+(( $+functions[_crabster__subcmd__start_commands] )) ||
+_crabster__subcmd__start_commands() {
+    local commands; commands=()
+    _describe -t commands 'crabster start commands' commands "$@"
 }
 (( $+functions[_crabster__subcmd__stop_commands] )) ||
 _crabster__subcmd__stop_commands() {

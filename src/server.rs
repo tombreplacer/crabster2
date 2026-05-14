@@ -12,6 +12,8 @@ pub async fn start_server(
     hidden: bool,
     no_delete: bool,
     auth: Option<String>,
+    daemon_id: Option<String>,
+    notify_fd: Option<i32>,
 ) -> std::io::Result<()> {
     let root_dir = root_dir.canonicalize().unwrap_or(root_dir);
 
@@ -23,26 +25,28 @@ pub async fn start_server(
         auth: auth.clone(),
     });
 
-    println!();
-    println!("  🦀 \x1b[1;38;5;208mCrabster\x1b[0m v{}", env!("CARGO_PKG_VERSION"));
-    println!("  ─────────────────────────────────");
-    println!("  📂 Serving:   \x1b[36m{}\x1b[0m", root_dir.display());
-    println!("  🌐 Listening: \x1b[32mhttp://{}:{}\x1b[0m", bind, port);
-    if readonly {
-        println!("  🔒 Mode:      \x1b[33mread-only\x1b[0m");
-    } else if no_delete {
-        println!("  🛡️  Mode:      \x1b[33mno-delete\x1b[0m");
-    } else {
-        println!("  ✏️  Mode:      \x1b[32mread-write\x1b[0m");
+    if daemon_id.is_none() {
+        println!();
+        println!("  🦀 \x1b[1;38;5;208mCrabster\x1b[0m v{}", env!("CARGO_PKG_VERSION"));
+        println!("  ─────────────────────────────────");
+        println!("  📂 Serving:   \x1b[36m{}\x1b[0m", root_dir.display());
+        println!("  🌐 Listening: \x1b[32mhttp://{}:{}\x1b[0m", bind, port);
+        if readonly {
+            println!("  🔒 Mode:      \x1b[33mread-only\x1b[0m");
+        } else if no_delete {
+            println!("  🛡️  Mode:      \x1b[33mno-delete\x1b[0m");
+        } else {
+            println!("  ✏️  Mode:      \x1b[32mread-write\x1b[0m");
+        }
+        if auth.is_some() {
+            println!("  🔐 Auth:      \x1b[32menabled\x1b[0m");
+        }
+        println!("  ─────────────────────────────────");
+        println!("  Press \x1b[1mCtrl+C\x1b[0m to stop");
+        println!();
     }
-    if auth.is_some() {
-        println!("  🔐 Auth:      \x1b[32menabled\x1b[0m");
-    }
-    println!("  ─────────────────────────────────");
-    println!("  Press \x1b[1mCtrl+C\x1b[0m to stop");
-    println!();
 
-    HttpServer::new(move || {
+    let server_result = HttpServer::new(move || {
         App::new()
             .app_data(state.clone())
             .app_data(web::PayloadConfig::new(512 * 1024 * 1024)) // 512MB max
@@ -56,7 +60,23 @@ pub async fn start_server(
             .route("/api/mkdir", web::post().to(handlers::create_dir))
             .route("/api/auth", web::post().to(handlers::auth_login))
     })
-    .bind(format!("{}:{}", bind, port))?
-    .run()
-    .await
+    .bind(format!("{}:{}", bind, port));
+
+    match server_result {
+        Ok(server) => {
+            if let Some(id) = daemon_id {
+                crate::daemon::save_instance(&id, port, bind, root_dir);
+            }
+            if let Some(fd) = notify_fd {
+                crate::daemon::notify_success(fd);
+            }
+            server.run().await
+        }
+        Err(e) => {
+            if let Some(fd) = notify_fd {
+                crate::daemon::notify_error(fd, &e.to_string());
+            }
+            Err(e)
+        }
+    }
 }

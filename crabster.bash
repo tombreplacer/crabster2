@@ -16,23 +16,14 @@ _crabster() {
             ",$1")
                 cmd="crabster"
                 ;;
-            crabster,help)
-                cmd="crabster__subcmd__help"
+            crabster,start)
+                cmd="crabster__subcmd__start"
                 ;;
             crabster,ps)
                 cmd="crabster__subcmd__ps"
                 ;;
             crabster,stop)
                 cmd="crabster__subcmd__stop"
-                ;;
-            crabster__subcmd__help,help)
-                cmd="crabster__subcmd__help__subcmd__help"
-                ;;
-            crabster__subcmd__help,ps)
-                cmd="crabster__subcmd__help__subcmd__ps"
-                ;;
-            crabster__subcmd__help,stop)
-                cmd="crabster__subcmd__help__subcmd__stop"
                 ;;
             *)
                 ;;
@@ -41,7 +32,7 @@ _crabster() {
 
     case "${cmd}" in
         crabster)
-            opts="--port --bind --dir --readonly --hidden --no-delete --daemon --completions --auth --help --version ps stop help"
+            opts="--port --bind --dir --readonly --hidden --no-delete --daemon --completions --auth --help --version start ps stop"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -77,88 +68,25 @@ _crabster() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        crabster__subcmd__help)
-            opts="ps stop help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        crabster__subcmd__help__subcmd__help)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        crabster__subcmd__help__subcmd__ps)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        crabster__subcmd__help__subcmd__stop)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
+        crabster__subcmd__start)
+            opts="--help"
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
         crabster__subcmd__ps)
-            opts="-h --help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
+            opts="--help"
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
         crabster__subcmd__stop)
-            opts="-h --help <ID>"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+            opts="--help"
+            if [[ ${cur} == -* ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            # Dynamic completion for instance IDs from ~/.crabster/instances/
+            local instances=$(ls -1 "$HOME/.crabster/instances/" 2>/dev/null | sed 's/\.json$//')
+            COMPREPLY=( $(compgen -W "${instances}" -- "${cur}") )
             return 0
             ;;
     esac

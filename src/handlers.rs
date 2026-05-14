@@ -520,30 +520,32 @@ pub async fn create_dir(
 
 /// Resolve a relative path safely within root_dir (prevent path traversal)
 fn resolve_safe_path(root: &Path, relative: &str) -> Option<PathBuf> {
-    let clean = relative
-        .replace('\\', "/")
-        .trim_start_matches('/')
-        .to_string();
-
-    let candidate = root.join(&clean);
-
-    // Canonicalize to resolve .. and symlinks
-    let canonical_root = root.canonicalize().ok()?;
-    let canonical_candidate = if candidate.exists() {
-        candidate.canonicalize().ok()?
-    } else {
-        // For non-existing paths (e.g., upload targets), check parent
-        let parent = candidate.parent()?;
-        let canonical_parent = parent.canonicalize().ok()?;
-        if !canonical_parent.starts_with(&canonical_root) {
-            return None;
+    let mut path = PathBuf::from(root);
+    
+    // Iterate through components and manually resolve them to prevent escaping the root
+    for component in Path::new(relative).components() {
+        match component {
+            std::path::Component::Normal(c) => path.push(c),
+            std::path::Component::ParentDir => {
+                // Try to pop. If we're already at root, this is an illegal traversal attempt
+                if path == root {
+                    return None;
+                }
+                path.pop();
+            }
+            std::path::Component::RootDir => {
+                // Ignore absolute paths in the relative part, treat as relative to root
+            }
+            std::path::Component::CurDir => {
+                // Ignore '.'
+            }
+            _ => {}
         }
-        let file_name = candidate.file_name()?;
-        return Some(canonical_parent.join(file_name));
-    };
+    }
 
-    if canonical_candidate.starts_with(&canonical_root) {
-        Some(canonical_candidate)
+    // Double check that the final path still starts with our root
+    if path.starts_with(root) {
+        Some(path)
     } else {
         None
     }

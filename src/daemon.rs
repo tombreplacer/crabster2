@@ -23,7 +23,7 @@ fn get_state_dir() -> PathBuf {
     path
 }
 
-fn generate_id() -> String {
+pub fn generate_id() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -32,25 +32,65 @@ fn generate_id() -> String {
     format!("{:x}", now).chars().rev().take(6).collect()
 }
 
+pub fn save_instance(id: &str, port: u16, bind: &str, dir: PathBuf) {
+    let instance = Instance {
+        id: id.to_string(),
+        pid: process::id(),
+        port,
+        bind: bind.to_string(),
+        dir,
+        started: Utc::now(),
+    };
+
+    let path = get_state_dir().join(format!("{}.json", id));
+    if let Ok(json) = serde_json::to_string(&instance) {
+        fs::write(path, json).ok();
+    }
+}
+
 use std::io;
 
 #[cfg(unix)]
-pub fn daemonize(port: u16, bind: &str, dir: PathBuf) -> io::Result<String> {
-    use libc::{fork, setsid, umask, chdir, close, open, O_RDWR};
+pub fn daemonize() -> io::Result<(String, bool, Option<i32>)> {
+    use libc::{fork, setsid, umask, chdir, close, pipe};
 
     let id = generate_id();
+    let mut fds = [0i32; 2];
     
     unsafe {
+        if pipe(fds.as_mut_ptr()) < 0 {
+            return Err(io::Error::last_os_error());
+        }
+
         let pid = fork();
         if pid < 0 {
             return Err(io::Error::last_os_error());
         }
+        
         if pid > 0 {
             // Parent process
-            return Ok(id);
+            close(fds[1]); // Close write end
+            let mut buf = [0u8; 1024];
+            let n = libc::read(fds[0], buf.as_mut_ptr() as *mut libc::c_void, buf.len());
+            close(fds[0]);
+            
+            if n > 0 {
+                let msg = String::from_utf8_lossy(&buf[..n as usize]);
+                if msg == "OK" {
+                    return Ok((id, true, None));
+                } else {
+                    return Err(io::Error::new(io::ErrorKind::Other, msg));
+                }
+            } else if n == 0 {
+                return Err(io::Error::new(io::ErrorKind::Other, "Daemon child exited unexpectedly"));
+            } else {
+                return Err(io::Error::last_os_error());
+            }
         }
 
         // Child process
+        close(fds[0]); // Close read end
+        
         if setsid() < 0 {
             process::exit(1);
         }
@@ -60,39 +100,41 @@ pub fn daemonize(port: u16, bind: &str, dir: PathBuf) -> io::Result<String> {
         let root = std::ffi::CString::new("/").unwrap();
         chdir(root.as_ptr());
 
-        // Redirect stdio to /dev/null or log files
+        // We'll redirect stdio later, after notifying parent or failing
+        // For now, return the write end of the pipe
+        Ok((id, false, Some(fds[1])))
+    }
+}
+
+pub fn notify_success(pipe_fd: i32) {
+    unsafe {
+        libc::write(pipe_fd, "OK".as_ptr() as *const libc::c_void, 2);
+        libc::close(pipe_fd);
+        
+        // Now it's safe to redirect stdio
         let dev_null = std::ffi::CString::new("/dev/null").unwrap();
-        let fd = open(dev_null.as_ptr(), O_RDWR);
+        let fd = libc::open(dev_null.as_ptr(), libc::O_RDWR);
         if fd >= 0 {
             libc::dup2(fd, 0);
             libc::dup2(fd, 1);
             libc::dup2(fd, 2);
             if fd > 2 {
-                close(fd);
+                libc::close(fd);
             }
         }
     }
+}
 
-    // Save instance info
-    let instance = Instance {
-        id: id.clone(),
-        pid: process::id(),
-        port,
-        bind: bind.to_string(),
-        dir,
-        started: Utc::now(),
-    };
-
-    let path = get_state_dir().join(format!("{}.json", id));
-    let json = serde_json::to_string(&instance).unwrap();
-    fs::write(path, json).ok();
-
-    // The child continues and returns "" to signify it's the daemon
-    Ok("".to_string())
+pub fn notify_error(pipe_fd: i32, err: &str) {
+    unsafe {
+        libc::write(pipe_fd, err.as_ptr() as *const libc::c_void, err.len());
+        libc::close(pipe_fd);
+        process::exit(1);
+    }
 }
 
 #[cfg(not(unix))]
-pub fn daemonize(_port: u16, _bind: &str, _dir: PathBuf) -> std::io::Result<String> {
+pub fn daemonize() -> std::io::Result<(String, bool, Option<i32>)> {
     Err(std::io::Error::new(std::io::ErrorKind::Other, "Daemon mode is only supported on Unix systems"))
 }
 

@@ -20,6 +20,9 @@ async fn main() -> std::io::Result<()> {
     // Handle subcommands
     if let Some(cmd) = &args.command {
         match cmd {
+            Commands::Start => {
+                // Just fall through to normal start logic
+            }
             Commands::Ps => {
                 let instances = daemon::list_instances();
                 if instances.is_empty() {
@@ -68,21 +71,27 @@ async fn main() -> std::io::Result<()> {
     }
 
     // Handle daemonization
+    let mut daemon_id = None;
+    let mut notify_fd = None;
     if args.daemon {
-        match daemon::daemonize(args.port, &args.bind, dir.clone()) {
-            Ok(id) => {
-                if id.is_empty() {
-                    // We are in the child process
-                } else {
-                    // We are in the parent process
+        match daemon::daemonize() {
+            Ok((id, is_parent, fd)) => {
+                if is_parent {
+                    // We are in the parent process. 
+                    // daemon::daemonize() already waited for child's notification.
+                    // If it returned Ok, it means the child sent "OK".
                     println!("🦀 Crabster started in background");
                     println!("   ID:   \x1b[33m{}\x1b[0m", id);
                     println!("   URL:  \x1b[32mhttp://{}:{}\x1b[0m", if args.bind == "0.0.0.0" { "localhost" } else { &args.bind }, args.port);
                     return Ok(());
+                } else {
+                    // We are in the child process
+                    daemon_id = Some(id);
+                    notify_fd = fd;
                 }
             }
             Err(e) => {
-                eprintln!("\x1b[31mError:\x1b[0m Failed to daemonize: {}", e);
+                eprintln!("\x1b[31mError:\x1b[0m Failed to start daemon: {}", e);
                 std::process::exit(1);
             }
         }
@@ -96,6 +105,8 @@ async fn main() -> std::io::Result<()> {
         args.hidden,
         args.no_delete,
         args.auth,
+        daemon_id,
+        notify_fd,
     )
     .await
 }
