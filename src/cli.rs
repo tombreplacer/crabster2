@@ -1,4 +1,4 @@
-use clap::{CommandFactory, Parser, ValueHint};
+use clap::{CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{generate, Shell};
 use std::io;
 use std::path::PathBuf;
@@ -20,7 +20,7 @@ pub struct Cli {
     pub bind: String,
 
     /// Directory to serve
-    #[arg(short, long, default_value = "./", value_hint = ValueHint::DirPath, env = "CRABSTER_DIR")]
+    #[arg(long, default_value = "./", value_hint = ValueHint::DirPath, env = "CRABSTER_DIR")]
     pub dir: PathBuf,
 
     /// Read-only mode (disable upload and delete)
@@ -35,6 +35,10 @@ pub struct Cli {
     #[arg(long)]
     pub no_delete: bool,
 
+    /// Run in background as a daemon
+    #[arg(short, long)]
+    pub daemon: bool,
+
     /// Generate shell completions
     #[arg(long, value_name = "SHELL")]
     pub completions: Option<Shell>,
@@ -42,6 +46,20 @@ pub struct Cli {
     /// Require a code (password) for access
     #[arg(long, env = "CRABSTER_AUTH", value_name = "PASSWORD", hide_env_values = true)]
     pub auth: Option<String>,
+
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum Commands {
+    /// List running daemon instances
+    Ps,
+    /// Stop a running daemon instance
+    Stop {
+        /// Instance ID to stop
+        id: String,
+    },
 }
 
 pub fn print_completions(shell: Shell) {

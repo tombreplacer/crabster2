@@ -23,15 +23,106 @@ _crabster() {
 '--readonly[Read-only mode (disable upload and delete)]' \
 '--hidden[Show hidden files]' \
 '--no-delete[Disable file deletion (uploads still allowed)]' \
+'--daemon[Run in background as a daemon]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '--version[Print version]' \
+":: :_crabster_commands" \
+"*::: :->crabster" \
 && ret=0
+    case $state in
+    (crabster)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:crabster-command-$line[1]:"
+        case $line[1] in
+            (ps)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(stop)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Instance ID to stop:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_crabster__subcmd__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:crabster-help-command-$line[1]:"
+        case $line[1] in
+            (ps)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(stop)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
 }
 
 (( $+functions[_crabster_commands] )) ||
 _crabster_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'ps:List running daemon instances' \
+'stop:Stop a running daemon instance' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
     _describe -t commands 'crabster commands' commands "$@"
+}
+(( $+functions[_crabster__subcmd__help_commands] )) ||
+_crabster__subcmd__help_commands() {
+    local commands; commands=(
+'ps:List running daemon instances' \
+'stop:Stop a running daemon instance' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'crabster help commands' commands "$@"
+}
+(( $+functions[_crabster__subcmd__help__subcmd__help_commands] )) ||
+_crabster__subcmd__help__subcmd__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'crabster help help commands' commands "$@"
+}
+(( $+functions[_crabster__subcmd__help__subcmd__ps_commands] )) ||
+_crabster__subcmd__help__subcmd__ps_commands() {
+    local commands; commands=()
+    _describe -t commands 'crabster help ps commands' commands "$@"
+}
+(( $+functions[_crabster__subcmd__help__subcmd__stop_commands] )) ||
+_crabster__subcmd__help__subcmd__stop_commands() {
+    local commands; commands=()
+    _describe -t commands 'crabster help stop commands' commands "$@"
+}
+(( $+functions[_crabster__subcmd__ps_commands] )) ||
+_crabster__subcmd__ps_commands() {
+    local commands; commands=()
+    _describe -t commands 'crabster ps commands' commands "$@"
+}
+(( $+functions[_crabster__subcmd__stop_commands] )) ||
+_crabster__subcmd__stop_commands() {
+    local commands; commands=()
+    _describe -t commands 'crabster stop commands' commands "$@"
 }
 
 if [ "$funcstack[1]" = "_crabster" ]; then
