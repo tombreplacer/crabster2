@@ -59,6 +59,9 @@ crabster ps
 
 # Остановить сервер по ID
 crabster stop <id>
+
+# Просмотреть логи сервера
+crabster logs <id>
 ```
 
 ---
@@ -79,6 +82,7 @@ crabster stop <id>
 - `crabster start` — запуск сервера (по умолчанию).
 - `crabster ps` — список фоновых инстансов.
 - `crabster stop <id>` — остановить инстанс.
+- `crabster logs <id>` — просмотр логов инстанса.
 
 ---
 

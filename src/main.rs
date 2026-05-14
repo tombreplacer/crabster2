@@ -9,6 +9,24 @@ use cli::{Cli, Commands};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Initialize logger with custom format
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format(|buf, record| {
+            use std::io::Write;
+            let level = record.level();
+            let style = buf.default_level_style(level);
+            writeln!(
+                buf,
+                "[{}] {}{:<5}{} {}",
+                chrono::Local::now().format("%H:%M:%S"),
+                style.render(),
+                level,
+                style.render_reset(),
+                record.args()
+            )
+        })
+        .init();
+
     let args = Cli::parse();
 
     // Generate shell completions and exit
@@ -47,6 +65,13 @@ async fn main() -> std::io::Result<()> {
                 match daemon::stop_instance(id) {
                     Ok(_) => println!("Stopped instance {}", id),
                     Err(e) => eprintln!("\x1b[31mError:\x1b[0m {}", e),
+                }
+                return Ok(());
+            }
+            Commands::Logs { id, follow } => {
+                if let Err(e) = daemon::tail_logs(id, *follow) {
+                    eprintln!("\x1b[31mError:\x1b[0m {}", e);
+                    std::process::exit(1);
                 }
                 return Ok(());
             }

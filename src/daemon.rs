@@ -48,11 +48,25 @@ pub fn save_instance(id: &str, port: u16, bind: &str, dir: PathBuf) {
     }
 }
 
+fn get_log_dir() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let path = Path::new(&home).join(".crabster").join("logs");
+    if !path.exists() {
+        fs::create_dir_all(&path).ok();
+    }
+    path
+}
+
+pub fn get_log_path(id: &str) -> PathBuf {
+    get_log_dir().join(format!("{}.log", id))
+}
+
 use std::io;
+use std::io::Read;
 
 #[cfg(unix)]
 pub fn daemonize() -> io::Result<(String, bool, Option<i32>)> {
-    use libc::{fork, setsid, umask, chdir, close, pipe};
+    use libc::{fork, setsid, umask, chdir, pipe};
 
     let id = generate_id();
     let mut fds = [0i32; 2];
@@ -69,10 +83,10 @@ pub fn daemonize() -> io::Result<(String, bool, Option<i32>)> {
         
         if pid > 0 {
             // Parent process
-            close(fds[1]); // Close write end
+            libc::close(fds[1]); // Close write end
             let mut buf = [0u8; 1024];
             let n = libc::read(fds[0], buf.as_mut_ptr() as *mut libc::c_void, buf.len());
-            close(fds[0]);
+            libc::close(fds[0]);
             
             if n > 0 {
                 let msg = String::from_utf8_lossy(&buf[..n as usize]);
@@ -89,7 +103,7 @@ pub fn daemonize() -> io::Result<(String, bool, Option<i32>)> {
         }
 
         // Child process
-        close(fds[0]); // Close read end
+        libc::close(fds[0]); // Close read end
         
         if setsid() < 0 {
             process::exit(1);
@@ -106,20 +120,30 @@ pub fn daemonize() -> io::Result<(String, bool, Option<i32>)> {
     }
 }
 
-pub fn notify_success(pipe_fd: i32) {
+pub fn notify_success(pipe_fd: i32, id: &str) {
     unsafe {
         libc::write(pipe_fd, "OK".as_ptr() as *const libc::c_void, 2);
         libc::close(pipe_fd);
         
-        // Now it's safe to redirect stdio
-        let dev_null = std::ffi::CString::new("/dev/null").unwrap();
-        let fd = libc::open(dev_null.as_ptr(), libc::O_RDWR);
+        // Redirect stdio to log file
+        let log_path = get_log_path(id);
+        let log_path_c = std::ffi::CString::new(log_path.to_string_lossy().as_bytes()).unwrap();
+        let fd = libc::open(log_path_c.as_ptr(), libc::O_WRONLY | libc::O_CREAT | libc::O_APPEND, 0o644);
         if fd >= 0 {
-            libc::dup2(fd, 0);
-            libc::dup2(fd, 1);
-            libc::dup2(fd, 2);
+            libc::dup2(fd, 1); // stdout
+            libc::dup2(fd, 2); // stderr
             if fd > 2 {
                 libc::close(fd);
+            }
+        }
+        
+        // stdin still to /dev/null
+        let dev_null = std::ffi::CString::new("/dev/null").unwrap();
+        let stdin_fd = libc::open(dev_null.as_ptr(), libc::O_RDONLY);
+        if stdin_fd >= 0 {
+            libc::dup2(stdin_fd, 0);
+            if stdin_fd > 2 {
+                libc::close(stdin_fd);
             }
         }
     }
@@ -189,4 +213,35 @@ pub fn stop_instance(id: &str) -> Result<(), String> {
         }
     }
     Err("Failed to read instance info".to_string())
+}
+
+pub fn tail_logs(id: &str, follow: bool) -> io::Result<()> {
+    let log_path = get_log_path(id);
+    if !log_path.exists() {
+        return Err(io::Error::new(io::ErrorKind::NotFound, format!("Log file not found for instance '{}'", id)));
+    }
+
+    if !follow {
+        let content = fs::read_to_string(log_path)?;
+        println!("{}", content);
+        return Ok(());
+    }
+
+    // Follow mode (simple implementation)
+    let mut file = fs::File::open(&log_path)?;
+    let mut buffer = String::new();
+    
+    // Start from the end of the file
+    use std::io::Seek;
+    file.seek(io::SeekFrom::End(0))?;
+
+    loop {
+        let mut reader = io::BufReader::new(&file);
+        let n = reader.read_to_string(&mut buffer)?;
+        if n > 0 {
+            print!("{}", buffer);
+            buffer.clear();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
 }

@@ -62,6 +62,14 @@ pub enum Commands {
         /// Instance ID to stop
         id: String,
     },
+    /// View logs of a running daemon instance
+    Logs {
+        /// Instance ID to view logs for
+        id: String,
+        /// Follow log output (tail -f style)
+        #[arg(short, long)]
+        follow: bool,
+    },
 }
 
 pub fn print_completions(shell: Shell) {

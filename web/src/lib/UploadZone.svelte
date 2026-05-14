@@ -23,7 +23,9 @@
 </script>
 
 {#if !readonly}
-<div class="upload-zone" class:dragging on:drop={onDrop} on:dragover={onDragOver} on:dragleave={onDragLeave} on:click={onClick} role="button" tabindex="0">
+<div class="upload-zone" class:dragging on:drop={onDrop} on:dragover={onDragOver} on:dragleave={onDragLeave} 
+  on:click={onClick} role="button" tabindex="0" 
+  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}>
   <input bind:this={fileInput} type="file" multiple hidden on:change={onFileSelect}/>
   <div class="upload-content">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

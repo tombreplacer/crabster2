@@ -25,6 +25,9 @@ _crabster() {
             crabster,stop)
                 cmd="crabster__subcmd__stop"
                 ;;
+            crabster,logs)
+                cmd="crabster__subcmd__logs"
+                ;;
             *)
                 ;;
         esac
@@ -32,7 +35,7 @@ _crabster() {
 
     case "${cmd}" in
         crabster)
-            opts="--port --bind --dir --readonly --hidden --no-delete --daemon --completions --auth --help --version start ps stop"
+            opts="--port --bind --dir --readonly --hidden --no-delete --daemon --completions --auth --help --version start ps stop logs"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -80,6 +83,17 @@ _crabster() {
             ;;
         crabster__subcmd__stop)
             opts="--help"
+            if [[ ${cur} == -* ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            # Dynamic completion for instance IDs from ~/.crabster/instances/
+            local instances=$(ls -1 "$HOME/.crabster/instances/" 2>/dev/null | sed 's/\.json$//')
+            COMPREPLY=( $(compgen -W "${instances}" -- "${cur}") )
+            return 0
+            ;;
+        crabster__subcmd__logs)
+            opts="-f --follow --help"
             if [[ ${cur} == -* ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

@@ -48,6 +48,7 @@ pub async fn start_server(
 
     let server_result = HttpServer::new(move || {
         App::new()
+            .wrap(actix_web::middleware::Logger::new("%r -> %s (%T) \"%{User-Agent}i\""))
             .app_data(state.clone())
             .app_data(web::PayloadConfig::new(512 * 1024 * 1024)) // 512MB max
             .route("/", web::get().to(handlers::index_handler))
@@ -64,11 +65,11 @@ pub async fn start_server(
 
     match server_result {
         Ok(server) => {
-            if let Some(id) = daemon_id {
-                crate::daemon::save_instance(&id, port, bind, root_dir);
+            if let Some(id) = &daemon_id {
+                crate::daemon::save_instance(id, port, bind, root_dir);
             }
             if let Some(fd) = notify_fd {
-                crate::daemon::notify_success(fd);
+                crate::daemon::notify_success(fd, &daemon_id.unwrap());
             }
             server.run().await
         }

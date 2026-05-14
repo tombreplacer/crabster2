@@ -192,6 +192,10 @@
     }
     authLoading = false;
   }
+
+  function focus(node) {
+    node.focus();
+  }
 </script>
 
 <div class="app">
@@ -301,7 +305,8 @@
   </main>
 
   {#if contextMenu}
-    <div class="ctx-menu" style="left:{contextMenu.x}px;top:{contextMenu.y}px" on:click|stopPropagation>
+    <div class="ctx-menu" style="left:{contextMenu.x}px;top:{contextMenu.y}px" 
+      on:click|stopPropagation role="menu" tabindex="-1" on:keydown={(e) => e.key === 'Escape' && closeContext()}>
       {#if !contextMenu.entry.is_dir}
         <button on:click={() => { handleDownload(contextMenu.entry); closeContext(); }}>⬇ Download</button>
       {/if}
@@ -313,10 +318,10 @@
   {/if}
 
   {#if showNewDirModal}
-    <div class="modal-overlay" on:click={() => showNewDirModal = false}>
-      <div class="modal" on:click|stopPropagation>
+    <div class="modal-overlay" on:click={() => showNewDirModal = false} role="presentation" on:keydown={(e) => e.key === 'Escape' && (showNewDirModal = false)}>
+      <div class="modal" on:click|stopPropagation role="dialog" aria-modal="true" tabindex="-1" on:keydown|stopPropagation>
         <h3>New Folder</h3>
-        <input type="text" bind:value={newDirName} placeholder="Folder name" autofocus
+        <input type="text" bind:value={newDirName} placeholder="Folder name" use:focus
           on:keydown={(e) => e.key === 'Enter' && handleCreateDir()}/>
         <div class="modal-actions">
           <button class="btn btn-ghost" on:click={() => showNewDirModal = false}>Cancel</button>
