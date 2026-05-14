@@ -228,9 +228,22 @@ pub async fn preview_file(
         }
     };
 
-    let mime = mime_guess::from_path(&full_path)
+    let mut mime = mime_guess::from_path(&full_path)
         .first_or_octet_stream()
         .to_string();
+
+    if mime == "application/octet-stream" {
+        if file_size == 0 {
+            mime = "text/plain".to_string();
+        } else if let Ok(mut f) = tokio::fs::File::open(&full_path).await {
+            let mut buf = [0; 512];
+            if let Ok(n) = f.read(&mut buf).await {
+                if n > 0 && !buf[..n].contains(&0) {
+                    mime = "text/plain".to_string();
+                }
+            }
+        }
+    }
 
     let filename = full_path
         .file_name()

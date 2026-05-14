@@ -51,13 +51,27 @@ pub fn get_file_entry(path: &Path, name: &str) -> Option<FileEntry> {
     let permissions = get_permissions(&metadata);
     let (owner, group) = get_owner_group(&metadata);
 
-    let mime_type = if is_dir {
+    let mut mime_type = if is_dir {
         "directory".to_string()
     } else {
         mime_guess::from_path(path)
             .first_or_octet_stream()
             .to_string()
     };
+
+    if !is_dir && mime_type == "application/octet-stream" {
+        if size == 0 {
+            mime_type = "text/plain".to_string();
+        } else if let Ok(mut f) = fs::File::open(path) {
+            use std::io::Read;
+            let mut buf = [0; 512];
+            if let Ok(n) = f.read(&mut buf) {
+                if n > 0 && !buf[..n].contains(&0) {
+                    mime_type = "text/plain".to_string();
+                }
+            }
+        }
+    }
 
     Some(FileEntry {
         name: name.to_string(),

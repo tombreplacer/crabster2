@@ -1,12 +1,15 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { previewUrl, downloadUrl, getPreviewType, formatSize } from './api.js';
+  import hljs from 'highlight.js';
+  import 'highlight.js/styles/atom-one-dark.css';
 
   export let entry;
   export let filePath;
   export let onClose;
 
   let textContent = '';
+  let textHtml = '';
   let textLoading = false;
   let textError = '';
 
@@ -31,6 +34,21 @@
       const text = await res.text();
       // Limit display to 1MB of text
       textContent = text.length > 1_000_000 ? text.slice(0, 1_000_000) + '\n\n... (truncated)' : text;
+      
+      if (textContent.length <= 200_000) {
+        const fileExt = entry.name.split('.').pop()?.toLowerCase();
+        try {
+          if (fileExt && hljs.getLanguage(fileExt)) {
+            textHtml = hljs.highlight(textContent, { language: fileExt, ignoreIllegals: true }).value;
+          } else {
+            textHtml = hljs.highlightAuto(textContent).value;
+          }
+        } catch (err) {
+          textHtml = textContent.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+      } else {
+        textHtml = textContent.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
     } catch (e) {
       textError = e.message;
     }
@@ -93,7 +111,7 @@
         {:else if textError}
           <div class="preview-error">Failed to load: {textError}</div>
         {:else}
-          <pre class="preview-text"><code>{textContent}</code></pre>
+          <pre class="preview-text hljs"><code class="hljs">{@html textHtml}</code></pre>
         {/if}
       {/if}
     </div>
@@ -255,7 +273,6 @@
 
   .preview-text code {
     font-family: inherit;
-    color: inherit;
   }
 
   .preview-loading {
