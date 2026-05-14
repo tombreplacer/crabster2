@@ -439,8 +439,8 @@
   .ctx-menu button:hover { background: var(--bg-card-hover); }
   .ctx-danger { color: var(--danger) !important; }
 
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(4px); animation: fadeIn 0.15s ease; }
-  .modal { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; min-width: 360px; animation: slideUp 0.2s ease; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(4px); animation: fadeIn 0.15s ease; padding: 20px; }
+  .modal { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; min-width: 360px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.2s ease; }
   .modal h3 { font-size: 16px; margin-bottom: 16px; }
   .modal input { width: 100%; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 14px; outline: none; margin-bottom: 16px; }
   .modal input:focus { border-color: var(--accent); }

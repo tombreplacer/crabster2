@@ -127,6 +127,8 @@
     padding: 32px;
     max-width: 460px;
     width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
     position: relative;
     animation: slideUp 0.2s ease;
     box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);

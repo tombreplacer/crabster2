@@ -80,6 +80,8 @@
     padding: 40px;
     max-width: 420px;
     width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
     text-align: center;
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
