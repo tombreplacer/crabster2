@@ -117,6 +117,7 @@ crabster logs <id>
 - **Release**: При создании тега (например, `v0.1.2`) GitHub автоматически создаст релиз и прикрепит к нему:
   - Бинарный файл для Linux (`crabster-linux-amd64`)
   - Бинарный файл для Windows (`crabster-windows-amd64.exe`)
+  - Инсталлятор для Windows (`crabster-windows-installer.exe`, автоматически добавляет приложение в PATH)
   - Debian пакет (`.deb`)
   - Скрипты автодополнения для shell.
 

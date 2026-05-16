@@ -57,6 +57,9 @@ jobs:
         mkdir -p assets
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           cp target/release/crabster.exe assets/${{ matrix.asset_name }}
+          # Build Inno Setup Installer
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          cp target/installer/crabster-windows-installer.exe assets/
         else
           cp target/release/crabster assets/${{ matrix.asset_name }}
           ./target/release/crabster --completions bash > assets/crabster.bash
