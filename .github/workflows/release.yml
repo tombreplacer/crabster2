@@ -9,67 +9,69 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: crabster-linux
+            asset_name: crabster-linux-amd64
+          - os: windows-latest
+            artifact_name: crabster-windows
+            asset_name: crabster-windows-amd64.exe
+
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
 
-      - name: Install Frontend Dependencies
-        working-directory: web
-        run: npm install
+    - name: Install Frontend Dependencies
+      working-directory: web
+      run: npm install
 
-      - name: Build Frontend
-        working-directory: web
-        run: npm run build
+    - name: Build Frontend
+      working-directory: web
+      run: npm run build
 
-      - name: Compress Frontend
-        run: gzip -9 -c static/index.html > static/index.html.gz
+    - name: Compress Frontend
+      shell: bash
+      run: gzip -9 -c static/index.html > static/index.html.gz
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+    - name: Build Release Binary
+      run: cargo build --release
 
-      - name: Build Release Binary
-        run: cargo build --release
+    - name: Prepare Assets
+      shell: bash
+      run: |
+        mkdir -p assets
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          cp target/release/crabster.exe assets/${{ matrix.asset_name }}
+        else
+          cp target/release/crabster assets/${{ matrix.asset_name }}
+          ./target/release/crabster --completions bash > assets/crabster.bash
+          ./target/release/crabster --completions zsh > assets/_crabster
+          ./target/release/crabster --completions fish > assets/crabster.fish
+          cargo install cargo-deb || true
+          cargo deb
+          cp target/debian/*.deb assets/
+        fi
 
-      - name: Install cargo-deb
-        run: cargo install cargo-deb || true
-
-      - name: Generate Shell Completions
-        run: |
-          ./target/release/crabster --completions bash > crabster.bash
-          ./target/release/crabster --completions zsh > _crabster
-          ./target/release/crabster --completions fish > crabster.fish
-
-      - name: Build Debian Package
-        run: cargo deb
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            target/debian/*.deb
-            crabster.bash
-            _crabster
-            crabster.fish
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@v2
+      with:
+        files: assets/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -15,7 +15,9 @@ pub struct Instance {
 }
 
 fn get_state_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
     let path = Path::new(&home).join(".crabster").join("instances");
     if !path.exists() {
         fs::create_dir_all(&path).ok();
@@ -49,7 +51,9 @@ pub fn save_instance(id: &str, port: u16, bind: &str, dir: PathBuf) {
 }
 
 fn get_log_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
     let path = Path::new(&home).join(".crabster").join("logs");
     if !path.exists() {
         fs::create_dir_all(&path).ok();

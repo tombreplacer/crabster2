@@ -11,7 +11,12 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -32,6 +37,7 @@ jobs:
       run: npm run build
 
     - name: Compress Frontend
+      shell: bash
       run: gzip -9 -c static/index.html > static/index.html.gz
 
     - name: Set up Rust
@@ -54,17 +60,31 @@ jobs:
     - name: Build Release
       run: cargo build --release
 
-    - name: Install cargo-deb
-      run: cargo install cargo-deb || true
+    - name: Upload Artifact (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: crabster-linux
+        path: target/release/crabster
+
+    - name: Upload Artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: crabster-windows
+        path: target/release/crabster.exe
 
     - name: Build Debian Package
+      if: matrix.os == 'ubuntu-latest'
       run: |
         ./target/release/crabster --completions bash > crabster.bash
         ./target/release/crabster --completions zsh > _crabster
         ./target/release/crabster --completions fish > crabster.fish
+        cargo install cargo-deb || true
         cargo deb
-
-    - name: Upload Artifacts
+        
+    - name: Upload Debian Artifact
+      if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
       with:
         name: crabster-deb
