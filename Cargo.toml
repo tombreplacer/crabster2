@@ -1,6 +1,6 @@
 [package]
 name = "crabster"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 description = "A beautiful cross-platform CLI file server with web UI"
 license = "MIT"
