@@ -124,6 +124,7 @@ pub fn daemonize() -> io::Result<(String, bool, Option<i32>)> {
     }
 }
 
+#[cfg(unix)]
 pub fn notify_success(pipe_fd: i32, id: &str) {
     unsafe {
         libc::write(pipe_fd, "OK".as_ptr() as *const libc::c_void, 2);
@@ -153,12 +154,21 @@ pub fn notify_success(pipe_fd: i32, id: &str) {
     }
 }
 
+#[cfg(not(unix))]
+pub fn notify_success(_pipe_fd: i32, _id: &str) {}
+
+#[cfg(unix)]
 pub fn notify_error(pipe_fd: i32, err: &str) {
     unsafe {
         libc::write(pipe_fd, err.as_ptr() as *const libc::c_void, err.len());
         libc::close(pipe_fd);
         process::exit(1);
     }
+}
+
+#[cfg(not(unix))]
+pub fn notify_error(_pipe_fd: i32, _err: &str) {
+    process::exit(1);
 }
 
 #[cfg(not(unix))]
@@ -195,7 +205,10 @@ fn is_pid_alive(pid: u32) -> bool {
         libc::kill(pid as i32, 0) == 0
     }
     #[cfg(not(unix))]
-    false
+    {
+        let _ = pid;
+        false
+    }
 }
 
 pub fn stop_instance(id: &str) -> Result<(), String> {
@@ -211,6 +224,11 @@ pub fn stop_instance(id: &str) -> Result<(), String> {
                 if libc::kill(instance.pid as i32, libc::SIGTERM) != 0 {
                     return Err(format!("Failed to stop process {}", instance.pid));
                 }
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = instance;
+                return Err("Stopping instances is only supported on Unix systems".to_string());
             }
             fs::remove_file(path).ok();
             return Ok(());
